@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Expense tracker remote and local MCP server using FastMCP and SQLite"
 requires-python = ">=3.11"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "fastmcp>=4.1.4",
     "uvicorn",
 ]
