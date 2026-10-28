@@ -16,6 +16,7 @@ import json
 import os
 import sqlite3
 import sys
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
@@ -25,7 +26,22 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "expenses.db"))
+
+def get_db_path() -> str:
+    if "DB_PATH" in os.environ:
+        return os.environ["DB_PATH"]
+    candidate = os.path.join(BASE_DIR, "expenses.db")
+    try:
+        test_file = os.path.join(BASE_DIR, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return candidate
+    except Exception:
+        # Read-only container filesystem fallback (e.g. FastMCP Cloud)
+        return os.path.join(tempfile.gettempdir(), "expenses.db")
+
+DB_PATH = get_db_path()
 CATEGORIES_PATH = os.environ.get("CATEGORIES_PATH", os.path.join(BASE_DIR, "categories.json"))
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "")
 
@@ -301,13 +317,13 @@ def build_http_app():
 # Entrypoint
 # --------------------------------------------------------------------------- #
 def main():
-    if "--http" in sys.argv:
+    port = int(os.environ.get("PORT", 8000))
+    # If PORT is set (cloud hosting platforms like FastMCP Gateway) or --http flag is passed:
+    if "PORT" in os.environ or "--http" in sys.argv:
         import uvicorn
-
-        port = int(os.environ.get("PORT", 8000))
         uvicorn.run(build_http_app(), host="0.0.0.0", port=port)
     else:
-        mcp.run()  # stdio
+        mcp.run()  # stdio mode for local clients (Claude Desktop)
 
 
 if __name__ == "__main__":
